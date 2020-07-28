@@ -6,7 +6,7 @@ More recently, Barrnap - a fast and accurate method to identify the location of 
 By combining these two softwares and performing sequences comparison, this script allows the fast extraction of ITS sequences from fungal genomes.
 
 ```
-python extractITS.py -which ITS2 -i genome.fasta -o ./output/ -name mySpecies'
+python extractITS.py -which ITS2 -i genome.fasta -o ./output/ -name mySpecies
 ```
 
 ## Dependencies
