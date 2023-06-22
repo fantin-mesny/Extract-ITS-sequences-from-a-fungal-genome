@@ -31,7 +31,7 @@ if __name__ == '__main__':
 		a.o=a.o+'/'
 
 	if not os.path.exists(a.o):
-		os.makdirs(a.o)
+		os.makedirs(a.o)
 
 	if a.name=='genome':
 		name=a.i.split('/')[-1].split('.')[0]
