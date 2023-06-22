@@ -3,11 +3,11 @@
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import generic_dna
 import argparse
 import subprocess
 import sys
 import pandas as pd
+import os
 
 def get_params(argv):
 	parser = argparse.ArgumentParser(description='Extract ITS1 from fungal genome rapidly')
@@ -30,6 +30,9 @@ if __name__ == '__main__':
 	if a.o[-1]!='/':
 		a.o=a.o+'/'
 
+	if not os.path.exists(a.o):
+		os.makdirs(a.o)
+
 	if a.name=='genome':
 		name=a.i.split('/')[-1].split('.')[0]
 	else:
@@ -42,7 +45,7 @@ if __name__ == '__main__':
 	terminal('barrnap --kingdom euk --threads '+a.cpu+' '+a.i+' > '+a.o+'barrnap.tmp')
 
 	## Parsing and getting rDNA gene cluster coordinates
-	gff=pd.read_csv(a.o+'/barrnap.tmp', header=None,comment='#',sep='\t')
+	gff=pd.read_csv(a.o+'barrnap.tmp', header=None,comment='#',sep='\t')
 	gff=gff[gff[8].str.contains('18S') | gff[8].str.contains('28S')].sort_values(by=[0,6,3,4]).reset_index(drop=True)
 	regions=[]
 	print(gff)
@@ -96,7 +99,7 @@ if __name__ == '__main__':
 				Name=name
 			else:
 				Name=name+'_#'+str(n+1)
-			unique.append(SeqRecord(Seq(diff[n], generic_dna),Name,Name,str(seqs.count(diff[n]))+' copies of this sequence found in '+a.i.split('/')[-1]))
+			unique.append(SeqRecord(Seq(diff[n]),Name,Name,str(seqs.count(diff[n]))+' copies of this sequence found in '+a.i.split('/')[-1]))
 	
 		with open(a.o+name+'.'+a.which+'_filtered.fasta', "w") as output_handle:
 			SeqIO.write(unique, output_handle, 'fasta')
