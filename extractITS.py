@@ -3,11 +3,11 @@
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import generic_dna
 import argparse
 import subprocess
 import sys
 import pandas as pd
+import os
 
 def get_params(argv):
 	parser = argparse.ArgumentParser(description='Extract ITS1 from fungal genome rapidly')
@@ -30,19 +30,22 @@ if __name__ == '__main__':
 	if a.o[-1]!='/':
 		a.o=a.o+'/'
 
+	if not os.path.exists(a.o):
+		os.makedirs(a.o)
+
 	if a.name=='genome':
 		name=a.i.split('/')[-1].split('.')[0]
 	else:
 		name=a.name
 
-	if a.which not in ['ITS1','ITS2']:
-		print("ERROR, argument --which not recognized. Please choose between 'ITS1' and 'ITS2'")
+	if a.which not in ['SSU','ITS1','5.8S','ITS2','LSU','all','none']:
+		print("ERROR, argument --which not recognized. Please choose between 'SSU', 'ITS1', '5.8S', 'ITS2', 'LSU', 'all' and 'none'")
 
 	## Running barrnap
 	terminal('barrnap --kingdom euk --threads '+a.cpu+' '+a.i+' > '+a.o+'barrnap.tmp')
 
 	## Parsing and getting rDNA gene cluster coordinates
-	gff=pd.read_csv(a.o+'/barrnap.tmp', header=None,comment='#',sep='\t')
+	gff=pd.read_csv(a.o+'barrnap.tmp', header=None,comment='#',sep='\t')
 	gff=gff[gff[8].str.contains('18S') | gff[8].str.contains('28S')].sort_values(by=[0,6,3,4]).reset_index(drop=True)
 	regions=[]
 	print(gff)
@@ -85,30 +88,36 @@ if __name__ == '__main__':
 		## Run ITSx on regions.fasta
 		terminal('ITSx -t F -i %s -o %s --cpu %s --save_regions %s --not_found F --graphical F --summary F --positions F --fasta F' % (a.o+'regions.fasta',a.o+name,a.cpu,a.which))
 
-		## Remove Duplicates from ITSx output
-		with open(a.o+name+'.'+a.which+'.fasta','r') as handle:
-			its1s=list(SeqIO.parse(handle,'fasta'))
-		seqs=[str(s.seq) for s in its1s]
-		diff=list(set(seqs))
-		unique=[]
-		for n in range(len(diff)):
-			if len(diff)==1:
-				Name=name
-			else:
-				Name=name+'_#'+str(n+1)
-			unique.append(SeqRecord(Seq(diff[n], generic_dna),Name,Name,str(seqs.count(diff[n]))+' copies of this sequence found in '+a.i.split('/')[-1]))
+		ribcistron = ["SSU", "ITS1", "5_8S", "ITS2", "LSU"]
+		for cist in ribcistron:
+			if not os.path.isfile(a.o+name+'.'+cist+'.fasta'):
+				continue
+			print("removing duplicates from", cist)
+
+			## Remove Duplicates from ITSx output
+			with open(a.o+name+'.'+cist+'.fasta','r') as handle:
+				its1s=list(SeqIO.parse(handle,'fasta'))
+			seqs=[str(s.seq) for s in its1s]
+			diff=list(set(seqs))
+			unique=[]
+			for n in range(len(diff)):
+				if len(diff)==1:
+					Name=name
+				else:
+					Name=name+'_#'+str(n+1)
+				unique.append(SeqRecord(Seq(diff[n]),Name,Name,str(seqs.count(diff[n]))+' copies of this sequence found in '+a.i.split('/')[-1]))
 	
-		with open(a.o+name+'.'+a.which+'_filtered.fasta', "w") as output_handle:
-			SeqIO.write(unique, output_handle, 'fasta')
+			with open(a.o+name+'.'+cist+'_filtered.fasta', "w") as output_handle:
+				SeqIO.write(unique, output_handle, 'fasta')
 
-		## End message
+			## End message
 
-		if len(diff)==1:
-			print('\nDONE. A single '+a.which+' sequence was found in '+str(seqs.count(diff[n]))+' copies, in file '+a.i.split('/')[-1]+'.')
-		elif len(diff)>1:
-			print('\nDONE. '+str(len(diff))+' different '+a.which+' sequences were found in file '+a.i.split('/')[-1]+'. See output files for more info.')
-		elif len(diff)==0:
-			print('\nDONE. No '+a.which+' sequence found in file '+a.i.split('/')[-1])
+			if len(diff)==1:
+				print('\nDONE. A single '+cist+' sequence was found in '+str(seqs.count(diff[n]))+' copies, in file '+a.i.split('/')[-1]+'.')
+			elif len(diff)>1:
+				print('\nDONE. '+str(len(diff))+' different '+cist+' sequences were found in file '+a.i.split('/')[-1]+'. See output files for more info.')
+			elif len(diff)==0:
+				print('\nDONE. No '+cist+' sequence found in file '+a.i.split('/')[-1])
 
 	else:
 		print('\nDONE. No '+a.which+' sequence found in file '+a.i.split('/')[-1]+'.')
